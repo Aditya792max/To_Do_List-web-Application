@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            background: url('https://example.com/path-to-your-image/trees-background.jpg') center/cover no-repeat; /* Replace with the actual URL of your image */
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #date-time-box {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: #333;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            color: #fff;
+            font-size: 18px;
+        }
+
+        #todo-container {
+            background-color: #333;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            color: #fff;
+        }
+
+        #task-input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            outline: none;
+            background-color: #555;
+            color: #fff;
+        }
+
+        #task-list {
+            list-style-type: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+
+        .task {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            transition: background-color 0.3s ease;
+        }
+
+        .task:hover {
+            background-color: #444;
+        }
+
+        .task.completed {
+            background-color: #555;
+            text-decoration: line-through;
+        }
+
+        .task-text {
+            flex-grow: 1;
+            font-size: 16px;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .task-complete,
+        .task-delete,
+        .task-play-pause {
+            cursor: pointer;
+            font-size: 18px;
+            color: #bbb;
+        }
+
+        .task-complete:hover {
+            color: #5cb85c;
+        }
+
+        .task-delete:hover {
+            color: #d9534f;
+        }
+
+        .task-play-pause:hover {
+            color: #007bff;
+        }
+
+        .task-clock {
+            font-size: 14px;
+            color: #777;
+            margin-right: 10px;
+        }
+
+        .task-playing {
+            background-color: #007bff;
+        }
+
+        #confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            display: none;
+        }
+
+        #dialog-box {
+            background: #333;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            text-align: center;
+            animation: fadeIn 0.3s ease-out;
+            color: #fff;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        #dialog-box h3 {
+            margin-bottom: 10px;
+        }
+
+        #dialog-box button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #5bc0de;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        #dialog-box.fade-out {
+            animation: fadeOut 0.3s ease-in;
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+</head>
+
+<body>
+    <div id="date-time-box"></div>
+
+    <div id="todo-container">
+        <h2>To-Do List</h2>
+        <input type="text" id="task-input" placeholder="Add a new task">
+        <ul id="task-list"></ul>
+    </div>
+
+    <div id="confetti-container"></div>
+
+    <div id="dialog-overlay">
+        <div id="dialog-box">
+            <h3>Task Completed!</h3>
+            <p>You completed the task:</p>
+            <p><strong id="completed-task"></strong></p>
+            <button id="dialog-close">Close</button>
+        </div>
+    </div>
+
+    <table id="completed-tasks-table">
+        <thead>
+            <tr>
+                <th>Completed Tasks</th>
+            </tr>
+        </thead>
+        <tbody id="completed-tasks-body"></tbody>
+    </table>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const taskInput = document.getElementById('task-input');
+            const taskList = document.getElementById('task-list');
+            const dateTimeBox = document.getElementById('date-time-box');
+            const dialogOverlay = document.getElementById('dialog-overlay');
+            const dialogBox = document.getElementById('dialog-box');
+            const dialogCloseButton = document.getElementById('dialog-close');
+            const completedTaskElement = document.getElementById('completed-task');
+            const confettiContainer = document.getElementById('confetti-container');
+            const completedTasksBody = document.getElementById('completed-tasks-body');
+            let activeTask;
+
+            function createTask() {
+                const taskText = taskInput.value.trim();
+                if (taskText !== '') {
+                    const taskItem = document.createElement('li');
+                    taskItem.classList.add('task');
+
+                    const taskTextElement = document.createElement('div');
+                    taskTextElement.classList.add('task-text');
+                    taskTextElement.textContent = taskText;
+
+                    const taskActions = document.createElement('div');
+                    taskActions.classList.add('task-actions');
+
+                    const completeButton = document.createElement('span');
+                    completeButton.classList.add('task-complete');
+                    completeButton.textContent = '✓';
+
+                    const deleteButton = document.createElement('span');
+                    deleteButton.classList.add('task-delete');
+                    deleteButton.textContent = 'X';
+
+                    const playPauseButton = document.createElement('span');
+                    playPauseButton.classList.add('task-play-pause');
+                    playPauseButton.textContent = '▶';
+
+                    const taskClock = document.createElement('span');
+                    taskClock.classList.add('task-clock');
+                    let timer;
+
+                    completeButton.addEventListener('click', function () {
+                        taskItem.classList.toggle('completed');
+                        clearInterval(timer);
+                        showDialog(taskText);
+                        startConfetti();
+                        updateCompletedTasks(taskText);
+                    });
+
+                    deleteButton.addEventListener('click', function () {
+                        taskList.removeChild(taskItem);
+                        updateClock(); // Update the clock when a task is deleted
+                    });
+
+                    playPauseButton.addEventListener('click', function () {
+                        if (playPauseButton.textContent === '▶') {
+                            playPauseButton.textContent = '❚❚';
+                            pauseTimers();
+                            taskItem.classList.add('task-playing');
+                            activeTask = taskItem;
+                        } else {
+                            playPauseButton.textContent = '▶';
+                            resumeTimers();
+                            taskItem.classList.remove('task-playing');
+                            activeTask = null;
+                        }
+                    });
+
+                    taskActions.appendChild(completeButton);
+                    taskActions.appendChild(deleteButton);
+                    taskActions.appendChild(playPauseButton);
+
+                    taskItem.appendChild(taskTextElement);
+                    taskItem.appendChild(taskClock);
+                    taskItem.appendChild(taskActions);
+
+                    taskList.appendChild(taskItem);
+
+                    taskInput.value = '';
+                    startTimer(taskClock);
+                }
+            }
+
+            function showDialog(taskText) {
+                completedTaskElement.textContent = taskText;
+                dialogOverlay.style.display = 'flex';
+            }
+
+            dialogCloseButton.addEventListener('click', function () {
+                dialogBox.classList.add('fade-out');
+                setTimeout(() => {
+                    dialogOverlay.style.display = 'none';
+                    dialogBox.classList.remove('fade-out');
+                    stopConfetti();
+                }, 300); // Match the duration of the fadeOut animation
+            });
+
+            function startTimer(clockElement) {
+                let startTime = new Date();
+
+                function updateClock() {
+                    const currentTime = new Date();
+                    const elapsedMilliseconds = currentTime - startTime;
+
+                    const hours = Math.floor(elapsedMilliseconds / 3600000);
+                    const minutes = Math.floor((elapsedMilliseconds % 3600000) / 60000);
+                    const seconds = Math.floor((elapsedMilliseconds % 60000) / 1000);
+
+                    const formattedTime = `${padZero(hours)}:${padZero(minutes)}:${padZero(seconds)}`;
+                    clockElement.textContent = formattedTime;
+                }
+
+                timer = setInterval(updateClock, 1000);
+                updateClock(); // Initial update
+                return timer;
+            }
+
+            function padZero(num) {
+                return num < 10 ? `0${num}` : num;
+            }
+
+            function startConfetti() {
+                particlesJS('confetti-container', {
+                    particles: {
+                        number: {
+                            value: 100,
+                        },
+                        size: {
+                            value: 3,
+                        },
+                        move: {
+                            enable: true,
+                            speed: 5,
+                        },
+                    },
+                });
+            }
+
+            function stopConfetti() {
+                confettiContainer.innerHTML = '';
+            }
+
+            taskInput.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    createTask();
+                }
+            });
+
+            function updateClock() {
+                const now = new Date();
+                const date = now.toDateString();
+                const time = now.toLocaleTimeString();
+
+                dateTimeBox.textContent = `${date} - ${time}`;
+            }
+
+            setInterval(updateClock, 1000);
+
+            function pauseTimers() {
+                const otherTasks = document.querySelectorAll('.task:not(.task-playing)');
+                otherTasks.forEach(task => {
+                    clearInterval(task.timer);
+                });
+            }
+
+            function resumeTimers() {
+                const otherTasks = document.querySelectorAll('.task:not(.task-playing)');
+                otherTasks.forEach(task => {
+                    if (task.timer) {
+                        startTimer(task.querySelector('.task-clock'));
+                    }
+                });
+            }
+
+            function updateCompletedTasks(taskText) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.textContent = taskText;
+                row.appendChild(cell);
+                completedTasksBody.appendChild(row);
+            }
+        });
+    </script>
+</body>
+
+</html>
